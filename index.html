@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>工资查询提现一体化系统</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+            background:linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%);
+            min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;overflow-x:hidden;
+        }
+        .container{
+            background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            border-radius:20px;border:1px solid rgba(255,255,255,.18);box-shadow:0 20px 40px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.1);
+            padding:40px;max-width:600px;width:100%;animation:fadeIn .5s ease-out;
+        }
+        @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+        .header{text-align:center;margin-bottom:30px;}
+        .header h1{color:#fff;font-size:28px;margin-bottom:10px;text-shadow:0 0 10px rgba(255,255,255,.5);}
+        .search-section{margin-bottom:30px;}
+        .search-input{
+            width:100%;padding:15px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+            border-radius:10px;font-size:16px;text-align:center;color:#fff;margin-bottom:15px;
+        }
+        .search-btn{
+            width:100%;padding:15px;background:linear-gradient(135deg,#4CAF50 0%,#66BB6A 100%);color:#fff;border:none;
+            border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s ease;box-shadow:0 5px 15px rgba(76,175,80,.3);
+        }
+        .search-btn:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(76,175,80,.4);}
+        .loading,.not-found{display:none;text-align:center;padding:20px;}
+        .loading-spinner{
+            border:3px solid rgba(255,255,255,.1);border-top:3px solid #ff6b35;border-radius:50%;
+            width:40px;height:40px;margin:0 auto;animation:spin 1s linear infinite;
+        }
+        @keyframes spin{0%{transform:rotate(0);}100%{transform:rotate(360deg);}}
+        .info-card{
+            background:rgba(255,255,255,.1);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+            border-radius:15px;padding:20px;margin-bottom:30px;border:1px solid rgba(255,255,255,.15);
+            box-shadow:0 10px 20px rgba(0,0,0,.1);display:none;
+        }
+        .info-card.show{display:block;animation:slideIn .3s ease-out;}
+        @keyframes slideIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+        .info-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.1);}
+        .info-item:last-child{border-bottom:none;}
+        .info-label{color:rgba(255,255,255,.7);font-weight:500;font-size:14px;}
+        .info-value{color:#fff;font-weight:600;font-size:16px;word-break:break-all;}
+        /* 金额颜色 */
+        .money-black{color:#000;}
+        .money-gray{color:#9e9e9e;}
+        .money-white{color:#fff;}
+        .money-green{color:#4caf50;}
+        .money-blue{color:#2196f3;}
+        .money-purple{color:#9c27b0;}
+        .money-yellow{color:#ffeb3b;}
+        .money-orange{color:#ff9800;}
+        .money-red{color:#f44336;}
+        /* 滚动数字容器 */
+        .roll-salary{font-size:20px;font-weight:700;}
+        /* 乱码滚动 */
+        @keyframes glitch-anim{0%{opacity:.3;filter:blur(1px);}50%{opacity:1;filter:blur(0);}100%{opacity:1;filter:blur(0);}}
+        .glitch-anim{animation:glitch-anim 1.2s linear forwards;}
+        /* 问号图腾 */
+        @keyframes totem-rotate{0%{transform:rotate(0) scale(1);}50%{transform:rotate(360deg) scale(1.8);}100%{transform:rotate(720deg) scale(1);}}
+        .totem-q{font-size:24px;color:#ffeb3b;display:inline-block;animation:totem-rotate 1s ease-out;}
+        .payment-selector{margin-bottom:30px;display:none;}
+        .payment-title{color:#fff;font-size:20px;margin-bottom:20px;text-align:center;text-shadow:0 0 5px rgba(255,255,255,.3);}
+        .payment-cards{display:flex;gap:15px;overflow-x:auto;padding:10px 0;-webkit-overflow-scrolling:touch;}
+        .payment-card{
+            min-width:100px;background:rgba(255,255,255,.1);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+            border-radius:12px;padding:15px;text-align:center;cursor:pointer;transition:all .3s ease;
+            border:1px solid rgba(255,255,255,.1);position:relative;overflow:hidden;flex:1;
+        }
+        .payment-card:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,.2);background:rgba(255,255,255,.15);}
+        .payment-card.selected{border:1px solid rgba(255,107,53,.5);background:rgba(255,107,53,.15);box-shadow:0 0 15px rgba(255,107,53,.3);}
+        .payment-card.selected::after{
+            content:'✓';position:absolute;top:5px;right:5px;background:#ff6b35;color:#fff;width:20px;height:20px;
+            border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;
+        }
+        .payment-icon{font-size:30px;margin-bottom:8px;filter:drop-shadow(0 0 5px rgba(255,255,255,.5));}
+        .payment-name{color:#fff;font-size:12px;font-weight:500;}
+        .amount-section{margin-bottom:30px;display:none;}
+        .amount-section.show{display:block;animation:slideIn .3s ease-out;}
+        .amount-input{
+            width:100%;padding:15px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+            border-radius:10px;font-size:16px;text-align:center;color:#fff;-webkit-appearance:none;
+        }
+        .amount-input:focus{outline:none;border-color:rgba(255,107,53,.5);box-shadow:0 0 10px rgba(255,107,53,.3);background:rgba(255,255,255,.15);}
+        .submit-btn{
+            width:100%;padding:15px;background:linear-gradient(135deg,#ff6b35 0%,#ff9a3d 100%);color:#fff;border:none;
+            border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s ease;
+            box-shadow:0 5px 15px rgba(255,107,53,.3);display:none;
+        }
+        .submit-btn.show{display:block;animation:slideIn .3s ease-out;}
+        .submit-btn:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(255,107,53,.4);}
+        .overlay{
+            position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);
+            z-index:999;display:none;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+        }
+        .overlay.show{display:block;}
+        .alert{
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.7);
+            backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;padding:30px;
+            border-radius:15px;box-shadow:0 20px 40px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.1);
+            z-index:1000;display:none;max-width:90%;width:400px;text-align:center;border:1px solid rgba(255,255,255,.1);
+        }
+        .alert.show{display:block;animation:alertShow .3s ease-out;}
+        @keyframes alertShow{from{opacity:0;transform:translate(-50%,-50%) scale(.8);}to{opacity:1;transform:translate(-50%,-50%) scale(1);}}
+        .alert h3{margin-bottom:15px;color:#ff6b35;text-shadow:0 0 5px rgba(255,107,53,.3);}
+        .alert p{margin-bottom:20px;line-height:1.6;font-size:14px;}
+        .alert-btn{background:linear-gradient(135deg,#ff6b35 0%,#ff9a3d 100%);color:#fff;border:none;padding:10px 30px;border-radius:5px;cursor:pointer;font-size:16px;transition:all .3s ease;box-shadow:0 5px 15px rgba(255,107,53,.3);}
+        .alert-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(255,107,53,.4);}
+        .countdown{font-size:20px;font-weight:bold;color:#ff6b35;margin:20px 0;text-shadow:0 0 5px rgba(255,107,53,.3);}
+        /* 问号图腾 */
+        @keyframes totem-rotate{0%{transform:rotate(0) scale(1);}50%{transform:rotate(360deg) scale(1.8);}100%{transform:rotate(720deg) scale(1);}}
+        .totem-q{font-size:24px;color:#ffeb3b;display:inline-block;animation:totem-rotate 1s ease-out;}
+        /* 响应式 */
+        @media(max-width:768px){
+            .container{padding:20px;margin:10px;}
+            .header h1{font-size:24px;}
+            .payment-cards{gap:10px;}
+            .payment-card{min-width:80px;padding:12px;}
+            .payment-icon{font-size:24px;}
+            .payment-name{font-size:11px;}
+            .info-item{flex-direction:column;align-items:flex-start;gap:5px;}
+            .info-value{font-size:14px;}
+            .search-input,.amount-input{font-size:16px;}
+            .submit-btn,.search-btn{font-size:16px;}
+            .alert{padding:20px;width:90%;}
+            .alert p{font-size:14px;}
+        }
+        @media(max-width:480px){
+            .container{padding:15px;margin:5px;}
+            .header h1{font-size:20px;}
+            .payment-card{min-width:70px;padding:10px;}
+            .payment-icon{font-size:20px;}
+            .payment-name{font-size:10px;}
+            .search-input,.amount-input{font-size:14px;padding:12px;}
+            .submit-btn,.search-btn{font-size:14px;padding:12px;}
+            .alert{padding:15px;}
+            .countdown{font-size:18px;}
+        }
+        @media(max-width:320px){
+            .payment-cards{gap:8px;}
+            .payment-card{min-width:60px;padding:8px;}
+            .payment-icon{font-size:18px;}
+            .payment-name{font-size:9px;}
+            .search-input,.amount-input{font-size:12px;}
+            .submit-btn,.search-btn{font-size:12px;}
+        }
+        @media(max-height:500px) and (orientation:landscape){
+            .container{padding:15px;max-height:90vh;overflow-y:auto;}
+            .header{margin-bottom:20px;}
+            .header h1{font-size:20px;}
+            .info-card{margin-bottom:20px;padding:15px;}
+        }
+        @media(-webkit-min-device-pixel-ratio:2),(min-resolution:192dpi){
+            .payment-card,.info-card,.search-input,.amount-input{border-width:.5px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>🔎💴工资查询提现一体化系统🈸💴</h1></div>
+        <div class="search-section">
+            <input type="text" class="search-input" id="idInput" placeholder="🆔 请输入18位伪身份证号" maxlength="18">
+            <button class="search-btn" id="searchBtn">🔎查询身份🔍</button>
+        </div>
+        <div class="loading" id="loading"><div class="loading-spinner"></div><p>🌐正在查询数据•••.</p></div>
+        <div class="not-found" id="notFound"><p>❌ 未找到该身份证对应的员工信息</p></div>
+        <div class="info-card" id="infoCard">
+            <div class="info-item"><span class="info-label">🏷伪身份证号</span><span class="info-value"><span id="idNumber" class="glitch-mask">-</span></span></div>
+            <div class="info-item"><span class="info-label">🔖姓名</span><span class="info-value"><span id="nameQ" class="totem-q">?</span><span id="name" style="display:none;">-</span></span></div>
+            <div class="info-item"><span class="info-label">👥性别</span><span class="info-value"><span id="genderQ" class="totem-q">?</span><span id="gender" style="display:none;">-</span></span></div>
+            <div class="info-item"><span class="info-label">💳储存号</span><span class="info-value"><span id="storageNumber" class="glitch-mask">-</span></span></div>
+            <div class="info-item"><span class="info-label">💴工资</span><span class="info-value roll-salary" id="salary">-</span></div>
+        </div>
+        <div class="payment-selector" id="paymentSelector">
+            <h2 class="payment-title">👆🏻请选择工资到账通道👇🏻</h2>
+            <div class="payment-cards" id="paymentCards">
+                <div class="payment-card" data-type="QQ"><div class="payment-icon">🐧</div><div class="payment-name">QQ</div></div>
+                <div class="payment-card" data-type="微信"><div class="payment-icon">✅</div><div class="payment-name">微信</div></div>
+                <div class="payment-card" data-type="支付宝"><div class="payment-icon">🟦</div><div class="payment-name">支付宝</div></div>
+                <div class="payment-card" data-type="银行卡"><div class="payment-icon">💳</div><div class="payment-name">银行卡</div></div>
+                <div class="payment-card" data-type="手机话费"><div class="payment-icon">📶</div><div class="payment-name">手机话费</div></div>
+            </div>
+        </div>
+        <div class="amount-section" id="amountSection"><input type="number" class="amount-input" id="amountInput" placeholder="⌨️请输入需要工资到账金额💴" min="0" step="0.01"></div>
+        <button class="submit-btn" id="submitBtn">ℹ️确认提现🈸</button>
+    </div>
+    <div class="overlay" id="overlay"></div>
+    <div class="alert" id="alert"><h3>ℹ️提示⚠️</h3><p id="alertMessage"></p><div class="countdown" id="countdown"></div><button class="alert-btn" id="alertBtn">💹确定💹</button></div>
+
+    <script>
+        // 防开发者工具 & 电脑端检测 同上，省略
+        (function(){
+            const threshold=160;
+            setInterval(function(){
+                if(window.outerHeight-window.innerHeight>threshold||window.outerWidth-window.innerWidth>threshold){
+                    window.location.href='https://dongshengamestudio.github.io/error30081690014443201/';
+                }
+            },500);
+            document.onkeydown=function(e){
+                if(e.keyCode===123||(e.ctrlKey&&e.shiftKey&&(e.keyCode===73||e.keyCode===74))||(e.ctrlKey&&e.keyCode===85)){
+                    e.preventDefault();window.location.href='https://dongshengamestudio.github.io/error30081690014443201/';
+                }
+            };
+        })();
+        (function(){
+            const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isTouchDevice='ontouchstart' in window||navigator.maxTouchPoints>0;
+            if(!isMobile&&!isTouchDevice&&window.innerWidth>768){
+                window.location.href='https://dongshengamestudio.github.io/error30081690014443201/';
+            }
+        })();
+
+        class SalarySystem {
+            constructor(){
+                this.allData=[];
+                this.currentData=null;
+                this.selectedPayment=null;
+                this.phoneNumber='18150148372';
+                this.init();
+            }
+            init(){
+                this.bindEvents();
+                this.loadAllData();
+            }
+            bindEvents(){
+                document.getElementById('searchBtn').addEventListener('click',()=>this.searchById());
+                document.getElementById('idInput').addEventListener('keypress',e=>{if(e.key==='Enter')this.searchById();});
+                document.querySelectorAll('.payment-card').forEach(card=>{
+                    card.addEventListener('click',()=>{
+                        document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected'));
+                        card.classList.add('selected');this.selectedPayment=card.dataset.type;this.showAmountSection();
+                    });
+                });
+                document.getElementById('submitBtn').addEventListener('click',()=>this.handleSubmit());
+                document.getElementById('alertBtn').addEventListener('click',()=>this.hideAlert());
+                const amountInput=document.getElementById('amountInput');
+                amountInput.addEventListener('input',e=>{
+                    const val=parseFloat(e.target.value);
+                    if(val<0)e.target.value=0;
+                    if(this.currentData&&val>this.currentData.salary)e.target.value=this.currentData.salary;
+                });
+                const idInput=document.getElementById('idInput');
+                idInput.addEventListener('input',e=>{
+                    e.target.value=e.target.value.replace(/[^0-9]/g,'').slice(0,18);
+                });
+            }
+            async loadAllData(){
+                let fileFound=false;
+                try{const data1=await this.loadScript('Gz1.js');if(data1){this.allData=this.allData.concat(this.parseData(data1));fileFound=true;}}catch(e){}
+                try{const data2=await this.loadScript('Gz2.js');if(data2){this.allData=this.allData.concat(this.parseData(data2));fileFound=true;}}catch(e){}
+                if(!fileFound){this.showAlert('系统未检测到数据库（Gz1.js / Gz2.js）！<br>请稍后重试或联系[东神团队/云平台]。',false);return;}
+                if(this.allData.length===0){this.showAlert('数据库为空，暂无员工信息。',false);}
+            }
+            loadScript(filename){
+                return new Promise((resolve,reject)=>{
+                    const script=document.createElement('script');
+                    script.src=filename+'?t='+Date.now();
+                    script.onload=()=>{const data=window.salaryData;delete window.salaryData;document.head.removeChild(script);resolve(data);};
+                    script.onerror=()=>{document.head.removeChild(script);reject(new Error('File not found'));};
+                    document.head.appendChild(script);
+                    setTimeout(()=>reject(new Error('Timeout')),2000);
+                });
+            }
+            parseData(data){
+                const lines=data.trim().split('\n');const result=[];
+                lines.forEach(line=>{
+                    if(line.trim()==='')return;
+                    const idNumber=line.substring(0,18);
+                    const nameMatch=line.substring(18).match(/^[\u4e00-\u9fa5]{2,3}/);
+                    const name=nameMatch?nameMatch[0]:'';
+                    const genderChar=line.substring(18+name.length,18+name.length+1);
+                    const gender=genderChar==='R'?'女':'男';
+                    const remaining=line.substring(18+name.length+1);
+                    const storageNumber=remaining.substring(0,15);
+                    const salary=parseFloat(remaining.substring(15));
+                    if(idNumber&&name&&gender&&storageNumber&&!isNaN(salary))result.push({idNumber,name,gender,storageNumber,salary});
+                });
+                return result;
+            }
+            searchById(){
+                const idInput=document.getElementById('idInput').value.trim();
+                if(!idInput){this.showAlert('请输入伪身份证号');return;}
+                if(idInput.length!==18){this.showAlert('伪身份证号必须为18位');return;}
+                document.getElementById('loading').style.display='block';
+                setTimeout(()=>{
+                    const found=this.allData.find(item=>item.idNumber===idInput);
+                    document.getElementById('loading').style.display='none';
+                    if(found){this.currentData=found;this.displayData(found);this.showPaymentSelector();document.getElementById('notFound').classList.remove('show');}
+                    else{this.hideData();document.getElementById('notFound').classList.add('show');}
+                },1000);
+            }
+            displayData(data){
+                this.startGlitch('idNumber',data.idNumber);
+                this.startGlitch('storageNumber',data.storageNumber);
+                this.startTotem('nameQ','name',data.name);
+                this.startTotem('genderQ','gender',data.gender);
+                this.rollNumber('salary',0,data.salary,1500);
+                document.getElementById('infoCard').classList.add('show');
+                const amountInput=document.getElementById('amountInput');
+                amountInput.max=data.salary;
+                amountInput.placeholder=`最大可提现金额：${this.formatMoney(data.salary)}`;
+            }
+            startGlitch(elId,finalText){
+                const el=document.getElementById(elId);
+                el.textContent=this.randomChars(finalText.length);
+                el.classList.add('glitch-anim');
+                setTimeout(()=>{el.textContent=finalText;el.classList.remove('glitch-anim');},1200);
+            }
+            randomChars(len){
+                const chars='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                return Array.from({length:len},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+            }
+            startTotem(qId,targetId,text){
+                const q=document.getElementById(qId);
+                const t=document.getElementById(targetId);
+                q.style.display='inline-block';
+                t.style.display='none';
+                q.addEventListener('animationend',()=>{q.style.display='none';t.style.display='inline';t.textContent=text;},{once:true});
+            }
+            rollNumber(elId,start,end,duration){
+                const el=document.getElementById(elId);
+                const startTime=performance.now();
+                const update=t=>{
+                    const p=Math.min((t-startTime)/duration,1);
+                    const val=start+(end-start)*p;
+                    el.textContent=this.formatMoney(val);
+                    el.className='roll-salary '+this.moneyColorClass(val);
+                    if(p<1)requestAnimationFrame(update);
+                };
+                requestAnimationFrame(update);
+            }
+            moneyColorClass(val){
+                if(val<1e4)return'money-gray';
+                if(val<5e4)return'money-white';
+                if(val<1e5)return'money-green';
+                if(val<5e5)return'money-blue';
+                if(val<1e6)return'money-purple';
+                if(val<5e6)return'money-yellow';
+                if(val<1e7)return'money-orange';
+                return'money-red';
+            }
+            formatMoney(num){
+                if(num>=1e8)return(num/1e8).toFixed(2)+'亿';
+                if(num>=1e4)return(num/1e4).toFixed(2)+'万';
+                return num.toLocaleString('zh-CN',{minimumFractionDigits:2});
+            }
+            showPaymentSelector(){document.getElementById('paymentSelector').classList.add('show');}
+            showAmountSection(){document.getElementById('amountSection').classList.add('show');document.getElementById('submitBtn').classList.add('show');}
+            hideData(){
+                document.getElementById('infoCard').classList.remove('show');
+                document.getElementById('paymentSelector').classList.remove('show');
+                document.getElementById('amountSection').classList.remove('show');
+                document.getElementById('submitBtn').classList.remove('show');
+                document.getElementById('amountInput').value='';
+                this.selectedPayment=null;
+                document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('selected'));
+            }
+            handleSubmit(){
+                if(!this.currentData){this.showAlert('请先查询员工信息');return;}
+                if(!this.selectedPayment){this.showAlert('请选择工资到账通道');return;}
+                const amount=parseFloat(document.getElementById('amountInput').value);
+                if(!amount||amount<=0){this.showAlert('请输入有效的到账金额');return;}
+                if(amount>this.currentData.salary){this.showAlert('提现金额不能超过工资总额');return;}
+                this.showCountdownAlert('请确认信息无误，8秒后将自动跳转到相应应用',8);
+                setTimeout(()=>this.redirectToApp(amount),8000);
+            }
+            redirectToApp(amount){
+                const {idNumber,name,gender,storageNumber}=this.currentData;
+                const body=`
+员工信息：
+伪身份证号：${idNumber}
+姓名：${name}
+性别：${gender}
+储存号：${storageNumber}
+提现金额：${this.formatMoney(amount)}
+到账方式：${this.selectedPayment}`.trim();
+                const emailApps=['QQ','微信','支付宝'];const smsApps=['银行卡','手机话费'];
+                if(emailApps.includes(this.selectedPayment)){
+                    window.location.href=`mailto:dongshengamestudio@qq.com?subject=${encodeURIComponent('工资提现申请 - '+name)}&body=${encodeURIComponent(body)}`;
+                }else if(smsApps.includes(this.selectedPayment)){
+                    window.location.href=`sms:${this.phoneNumber}?body=${encodeURIComponent(body)}`;
+                }
+            }
+            showAlert(message,hasCountdown=false){
+                document.getElementById('alertMessage').innerHTML=message;
+                document.getElementById('countdown').style.display=hasCountdown?'block':'none';
+                document.getElementById('overlay').classList.add('show');
+                document.getElementById('alert').classList.add('show');
+                document.body.style.overflow='hidden';
+            }
+            showCountdownAlert(message,seconds){
+                let count=seconds;this.showAlert(message,true);
+                document.getElementById('countdown').textContent=count;
+                const cd=setInterval(()=>{count--;document.getElementById('countdown').textContent=count;if(count<=0){clearInterval(cd);this.hideAlert();}},1000);
+            }
+            hideAlert(){
+                document.getElementById('overlay').classList.remove('show');
+                document.getElementById('alert').classList.remove('show');
+                document.body.style.overflow='';
+            }
+        }
+        new SalarySystem();
+    </script>
+</body>
+</html>
